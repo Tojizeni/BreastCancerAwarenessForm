@@ -231,26 +231,37 @@ const BreastCancerAwarenessForm = () => {
         return errs;
     };
 
+    /* ── ⭐ PASTE YOUR GOOGLE APPS SCRIPT URL HERE ⭐ ── */
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzh9O0nFeUKjd-9U_WbvLUDvPkix5fm4-luPhTfkFhISYvTOKMAoaIecvugrXcjJanOmw/exec';
+
+    /* Inside your component, replace collectFormData and handleSubmit with these: */
+
     const collectFormData = () => {
         const data = {};
         if (!formRef.current) return data;
+
+        // Radios
         const radioGroups = new Set();
         formRef.current.querySelectorAll('input[type="radio"]').forEach(r => radioGroups.add(r.name));
         radioGroups.forEach(name => {
             const checked = formRef.current.querySelector(`input[name="${name}"]:checked`);
             data[name] = checked ? checked.value : '';
         });
+
+        // Checkboxes → individual yes/no
         const sourceValues = ['TV_Radio', 'Social_Media', 'LHW', 'Doctor_Nurse', 'Family_Friends', 'Seminars'];
         sourceValues.forEach(val => {
             const cb = formRef.current.querySelector(`input[name="sources"][value="${val}"]`);
             data[`source_${val}`] = cb && cb.checked ? 'Yes' : 'No';
         });
+
         return data;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSubmitError('');
+
         const errs = validate();
         setErrors(errs);
         setAttempted(true);
@@ -270,14 +281,28 @@ const BreastCancerAwarenessForm = () => {
         setLoading(true);
 
         try {
-            await fetch(GOOGLE_SCRIPT_URL, {
+            // ⭐ KEY FIX: use URLSearchParams instead of JSON
+            // This sends as application/x-www-form-urlencoded which
+            // works reliably on ALL devices including iOS Safari
+            const params = new URLSearchParams();
+
+            Object.keys(formData).forEach(key => {
+                params.append(key, formData[key]);
+            });
+
+            const response = await fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: params.toString()
             });
+
+            // no-cors = can't read response, assume success if no error thrown
             setShowSuccess(true);
             window.scrollTo({ top: 0, behavior: 'smooth' });
+
         } catch (err) {
             console.error('Submit error:', err);
             setSubmitError('Something went wrong. Please check your internet connection and try again.');
